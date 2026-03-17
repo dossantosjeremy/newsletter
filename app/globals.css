@@ -144,6 +144,35 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary);
 }
 
+/* ─── Search ─── */
+.search-wrapper { padding: 20px 0 0; }
+
+.search-field { position: relative; }
+
+.search-icon {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--text-tertiary); pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.02em;
+  color: var(--text-primary); background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 9px 14px 9px 36px;
+  outline: none; transition: border-color 0.15s ease, background 0.15s ease;
+  -webkit-appearance: none;
+}
+.search-input::placeholder { color: var(--text-tertiary); }
+.search-input:focus { border-color: var(--border-strong); }
+/* hide browser-native clear button */
+.search-input::-webkit-search-cancel-button { -webkit-appearance: none; }
+
+.search-highlight {
+  background: var(--tag-ai-bg); color: var(--tag-ai);
+  border-radius: 2px; padding: 0 1px;
+}
+
 /* ─── Filter Bar ─── */
 .filter-bar {
   display: flex; align-items: center; justify-content: space-between;

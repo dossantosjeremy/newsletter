@@ -20,38 +20,33 @@ function estimateReadTime(blurb: string): number {
   return Math.max(1, Math.ceil(blurb.trim().split(/\s+/).length / 200))
 }
 
-const TOPIC_KEYWORDS: Record<string, string> = {
-  'ai agents': 'AI Agents', 'copilot': 'Copilot', 'llm': 'LLM',
-  'generative ai': 'Generative AI', 'chatgpt': 'ChatGPT', 'claude': 'Claude',
-  'prompt': 'Prompting', 'user research': 'User Research', 'usability': 'Usability',
-  'accessibility': 'Accessibility', 'design system': 'Design Systems',
-  'information architecture': 'IA', 'product strategy': 'Product Strategy',
-  'roadmap': 'Roadmapping', 'metrics': 'Metrics', 'automation': 'Automation',
-  'prototyping': 'Prototyping', 'figma': 'Figma', 'multimodal': 'Multimodal',
-  'personaliz': 'Personalisation', 'workflow': 'Workflow',
+// ─── Canonical tag system ─────────────────────────────────────────────────────
+// All raw tags from the JSON are normalised to one of these four labels.
+// Add new mappings here as new raw tags appear in the sheet.
+
+const CANONICAL_TAGS = ['UX Research', 'Product Design', 'AI', 'Product Management'] as const
+type CanonicalTag = typeof CANONICAL_TAGS[number]
+
+function normalizeTag(raw: string): CanonicalTag {
+  const t = (raw ?? '').toLowerCase()
+  if (t.includes('ux') || t.includes('user research') || t.includes('usability')) return 'UX Research'
+  if (t.includes('product management') || t.includes('product manager')) return 'Product Management'
+  if (
+    t.includes('ai') || t.includes('machine learning') || t.includes('llm') ||
+    t.includes('enterprise') || t.includes('automation') || t.includes('agent')
+  ) return 'AI'
+  if (t.includes('design') || t.includes('figma') || t.includes('prototype')) return 'Product Design'
+  return 'AI' // safe fallback
 }
 
-function extractTopics(story: Story): string[] {
-  const text = (story.title + ' ' + story.blurb).toLowerCase()
-  const found = new Set<string>()
-  for (const [kw, label] of Object.entries(TOPIC_KEYWORDS)) {
-    if (text.includes(kw)) found.add(label)
-  }
-  return Array.from(found).slice(0, 3)
+const TAG_CLASS: Record<CanonicalTag, string> = {
+  'UX Research':       'tag-ux-research',
+  'Product Design':    'tag-product-design',
+  'Product Management':'tag-product-management',
+  'AI':                'tag-ai-tools',
 }
 
-const TAG_CLASS: Record<string, string> = {
-  'UX Research': 'tag-ux-research',
-  'Product Design': 'tag-product-design',
-  'Product Management': 'tag-product-management',
-  'AI Tools': 'tag-ai-tools',
-  'AI Tooling': 'tag-ai-tools',
-  'AI-Assisted Development': 'tag-ai-tools',
-  'Design Tools': 'tag-product-design',
-  'Enterprise AI': 'tag-ai-tools',
-}
-
-const DISCIPLINES = ['All', 'Product Design', 'Design Tools', 'AI Tooling', 'AI-Assisted Development', 'Enterprise AI', 'UX Research', 'Product Management']
+const DISCIPLINES: string[] = ['All', ...CANONICAL_TAGS]
 
 // ─── Bookmark hook ────────────────────────────────────────────────────────────
 
@@ -132,15 +127,32 @@ function StoryCard({
   story,
   bookmarks,
   onBookmark,
+  searchQuery,
 }: {
   story: Story
   bookmarks: Set<string>
   onBookmark: (url: string) => void
+  searchQuery: string
 }) {
-  const topics = extractTopics(story)
   const readTime = estimateReadTime(story.blurb)
   const isBookmarked = bookmarks.has(story.url)
-  const tagClass = TAG_CLASS[story.tag] ?? 'tag-ai-tools'
+  const canonicalTag = normalizeTag(story.tag)
+  const tagClass = TAG_CLASS[canonicalTag]
+
+  // Highlight matching text in title/blurb when searching
+  function highlight(text: string): React.ReactNode {
+    const q = searchQuery.trim()
+    if (!q) return text
+    const idx = text.toLowerCase().indexOf(q.toLowerCase())
+    if (idx === -1) return text
+    return (
+      <>
+        {text.slice(0, idx)}
+        <mark className="search-highlight">{text.slice(idx, idx + q.length)}</mark>
+        {text.slice(idx + q.length)}
+      </>
+    )
+  }
 
   return (
     <div className="story-card-outer">
@@ -151,7 +163,7 @@ function StoryCard({
         className="story-card"
       >
         <div className="story-card-top">
-          <span className={`story-tag ${tagClass}`}>{story.tag}</span>
+          <span className={`story-tag ${tagClass}`}>{canonicalTag}</span>
           <span className="story-meta">
             <span className="story-source">{story.source}</span>
             <span className="story-dot">·</span>
@@ -159,16 +171,8 @@ function StoryCard({
           </span>
         </div>
 
-        <h3 className="story-title">{story.title}</h3>
-        <p className="story-blurb">{story.blurb}</p>
-
-        {topics.length > 0 && (
-          <div className="story-topics">
-            {topics.map(t => (
-              <span key={t} className="topic-pill">{t}</span>
-            ))}
-          </div>
-        )}
+        <h3 className="story-title">{highlight(story.title)}</h3>
+        <p className="story-blurb">{highlight(story.blurb)}</p>
       </a>
 
       <div className="story-card-actions">
@@ -195,27 +199,22 @@ function StoryCard({
 }
 
 // ─── Issue Block ──────────────────────────────────────────────────────────────
+// Receives stories already filtered by tag + search — just renders them.
 
 function IssueBlock({
   issue,
   index,
-  activeFilter,
   bookmarks,
   onBookmark,
+  searchQuery,
 }: {
-  issue: Issue
+  issue: Issue & { stories: Story[] }
   index: number
-  activeFilter: string
   bookmarks: Set<string>
   onBookmark: (url: string) => void
+  searchQuery: string
 }) {
-  const visibleStories = activeFilter === 'All'
-    ? issue.stories
-    : issue.stories.filter(s => s.tag === activeFilter)
-
-  if (visibleStories.length === 0) return null
-
-  const allTags = Array.from(new Set(issue.stories.map(s => s.tag).filter(Boolean)))
+  const canonicalTags = Array.from(new Set(issue.stories.map(s => normalizeTag(s.tag))))
 
   return (
     <article className="issue-block" style={{ animationDelay: `${index * 0.06}s` }}>
@@ -223,15 +222,10 @@ function IssueBlock({
         <time className="issue-date" dateTime={issue.date}>
           {formatDate(issue.date)}
         </time>
-        <span className="issue-badge">{issue.stories.length} stories</span>
+        <span className="issue-badge">{issue.stories.length} {issue.stories.length === 1 ? 'story' : 'stories'}</span>
         <div className="issue-tags">
-          {allTags.map(t => (
-            <span
-              key={t}
-              className={`issue-tag-pill ${TAG_CLASS[t] ?? ''}`}
-            >
-              {t}
-            </span>
+          {canonicalTags.map(t => (
+            <span key={t} className={`issue-tag-pill ${TAG_CLASS[t] ?? ''}`}>{t}</span>
           ))}
         </div>
       </div>
@@ -239,12 +233,13 @@ function IssueBlock({
       <p className="issue-intro">{issue.synthesised_opener ?? issue.intro}</p>
 
       <div className="story-list">
-        {visibleStories.map((story, i) => (
+        {issue.stories.map((story, i) => (
           <StoryCard
             key={`${issue.date}-${i}`}
             story={story}
             bookmarks={bookmarks}
             onBookmark={onBookmark}
+            searchQuery={searchQuery}
           />
         ))}
       </div>
@@ -257,17 +252,55 @@ function IssueBlock({
 export function Feed({ issues }: { issues: Issue[] }) {
   const [activeFilter, setActiveFilter] = useState('All')
   const [showBookmarksOnly, setShowBookmarksOnly] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const { bookmarks, toggle, loaded } = useBookmarks()
 
-  const filteredIssues = showBookmarksOnly
-    ? issues.map(issue => ({
-        ...issue,
-        stories: issue.stories.filter(s => bookmarks.has(s.url))
-      })).filter(issue => issue.stories.length > 0)
-    : issues
+  // All filtering happens here — tag, search, and bookmarks — before passing down
+  const filteredIssues = issues.map(issue => {
+    let stories = issue.stories
+
+    if (showBookmarksOnly) {
+      stories = stories.filter(s => bookmarks.has(s.url))
+    }
+
+    if (activeFilter !== 'All') {
+      stories = stories.filter(s => normalizeTag(s.tag) === activeFilter)
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      stories = stories.filter(s =>
+        s.title.toLowerCase().includes(q) ||
+        s.blurb.toLowerCase().includes(q) ||
+        s.source.toLowerCase().includes(q)
+      )
+    }
+
+    return { ...issue, stories }
+  }).filter(issue => issue.stories.length > 0)
+
+  const isFiltered = activeFilter !== 'All' || showBookmarksOnly || searchQuery.trim() !== ''
 
   return (
     <>
+      {/* Search */}
+      <div className="search-wrapper">
+        <div className="search-field">
+          <svg className="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.3"/>
+            <path d="M9.5 9.5L12.5 12.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+          </svg>
+          <input
+            className="search-input"
+            type="search"
+            placeholder="Search stories, sources…"
+            value={searchQuery}
+            onChange={e => { setSearchQuery(e.target.value); setShowBookmarksOnly(false) }}
+            aria-label="Search stories"
+          />
+        </div>
+      </div>
+
       {/* Filter bar */}
       <div className="filter-bar">
         <div className="filter-pills">
@@ -305,7 +338,9 @@ export function Feed({ issues }: { issues: Issue[] }) {
         {filteredIssues.length === 0 ? (
           <div className="state-wrapper">
             <p className="state-label">
-              {showBookmarksOnly ? 'No saved articles yet' : 'No issues published yet — check back tomorrow'}
+              {isFiltered
+                ? 'No stories match — try a different filter or search term'
+                : 'No issues published yet — check back tomorrow'}
             </p>
           </div>
         ) : (
@@ -314,9 +349,9 @@ export function Feed({ issues }: { issues: Issue[] }) {
               key={issue.date}
               issue={issue}
               index={i}
-              activeFilter={activeFilter}
               bookmarks={bookmarks}
               onBookmark={toggle}
+              searchQuery={searchQuery}
             />
           ))
         )}
