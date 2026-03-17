@@ -48,22 +48,48 @@ export async function getIssues(): Promise<Issue[]> {
 }
 
 function parseCSV(csv: string): string[][] {
+  // Character-by-character parser that correctly handles multi-line quoted fields.
+  // Splitting by '\n' first (the old approach) broke JSON values that contained
+  // newlines inside a quoted cell — this walks the whole string instead.
   const rows: string[][] = []
-  const lines = csv.split('\n')
-  for (const line of lines) {
-    if (!line.trim()) continue
-    const cols: string[] = []
-    let inQuote = false
-    let current = ''
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i]
-      if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; continue }
-      if (ch === '"') { inQuote = !inQuote; continue }
-      if (ch === ',' && !inQuote) { cols.push(current); current = ''; continue }
-      current += ch
+  let cols: string[] = []
+  let current = ''
+  let inQuote = false
+  let i = 0
+
+  while (i < csv.length) {
+    const ch = csv[i]
+
+    if (inQuote) {
+      if (ch === '"') {
+        // Escaped quote ("") → emit a literal "
+        if (csv[i + 1] === '"') { current += '"'; i += 2; continue }
+        // Closing quote
+        inQuote = false; i++; continue
+      }
+      current += ch; i++; continue
     }
+
+    // Outside a quoted field
+    if (ch === '"') { inQuote = true; i++; continue }
+    if (ch === ',') { cols.push(current); current = ''; i++; continue }
+    if (ch === '\r') { i++; continue } // skip CR in CRLF
+    if (ch === '\n') {
+      cols.push(current)
+      rows.push(cols)
+      cols = []
+      current = ''
+      i++
+      continue
+    }
+    current += ch; i++
+  }
+
+  // Flush the last row if the file doesn't end with a newline
+  if (current || cols.length > 0) {
     cols.push(current)
     rows.push(cols)
   }
+
   return rows.slice(1) // skip header row
 }

@@ -45,9 +45,13 @@ const TAG_CLASS: Record<string, string> = {
   'Product Design': 'tag-product-design',
   'Product Management': 'tag-product-management',
   'AI Tools': 'tag-ai-tools',
+  'AI Tooling': 'tag-ai-tools',
+  'AI-Assisted Development': 'tag-ai-tools',
+  'Design Tools': 'tag-product-design',
+  'Enterprise AI': 'tag-ai-tools',
 }
 
-const DISCIPLINES = ['All', 'UX Research', 'Product Design', 'Product Management', 'AI Tools']
+const DISCIPLINES = ['All', 'Product Design', 'Design Tools', 'AI Tooling', 'AI-Assisted Development', 'Enterprise AI', 'UX Research', 'Product Management']
 
 // ─── Bookmark hook ────────────────────────────────────────────────────────────
 
