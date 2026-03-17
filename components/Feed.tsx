@@ -232,7 +232,7 @@ function IssueBlock({
         </div>
       </div>
 
-      <p className="issue-intro">{issue.intro}</p>
+      <p className="issue-intro">{issue.synthesised_opener ?? issue.intro}</p>
 
       <div className="story-list">
         {visibleStories.map((story, i) => (

@@ -10,6 +10,7 @@ export interface Story {
 export interface Issue {
   date: string
   intro: string
+  synthesised_opener?: string   // ← add this line
   stories: Story[]
 }
 
