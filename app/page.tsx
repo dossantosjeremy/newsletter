@@ -1,6 +1,8 @@
 import { getIssues } from '@/lib/sheets'
 import { Feed } from '@/components/Feed'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
+import { SubscribeForm } from '@/components/SubscribeForm'
+import { SubscribeBanner } from '@/components/SubscribeBanner'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -34,6 +36,12 @@ export default async function Home() {
             If you work in UX, Product, or Design and want to stay on top of how AI intersect with your practice —
             {' '}<strong>The Interface</strong> scans 50+ sources every morning and surfaces what actually matters - Just the signal, no noise.
           </p>
+
+          <div className="hero-subscribe">
+            <SubscribeForm variant="hero" />
+            <p className="hero-subscribe-note">Free · No spam · Unsubscribe anytime</p>
+          </div>
+
           <div className="hero-stats">
             <div className="hero-stat">
               <span className="hero-stat-number">52</span>
@@ -58,6 +66,8 @@ export default async function Home() {
       <main className="site-wrapper">
         <Feed issues={issues} />
       </main>
+
+      <SubscribeBanner />
 
       <footer className="site-footer">
         <div className="site-wrapper">
